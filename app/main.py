@@ -71,21 +71,37 @@ def devops_error():
     """
     return "ERROR", 405
 
-@app.route('/generate-jwt', methods=['GET'])
+@app.route('/generate-jwt', methods=['POST'])
 @require_api_key
 def generate_jwt():
     """
     Endpoint to generate a JWT token for testing purposes.
+    Requires API key authentication.
     """
-    token = jwt_manager.generate_token()
+    data = request.get_json() or {}
+    user_id = data.get('user_id', 'test_user')
+    
+    token = jwt_manager.generate_token(user_id)
     return jsonify({"token": token}), 200
 
-@app.route('/generate-jwt', methods=['POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'])
+@app.route('/generate-jwt', methods=['GET', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'])
 def token_error():
     """
     Manage all requests methods not allowed.
     """
     return "ERROR", 405
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for Kubernetes"""
+    return jsonify({"status": "healthy"}), 200
+
+
+@app.route('/ready', methods=['GET'])
+def readiness_check():
+    """Readiness check endpoint for Kubernetes"""
+    return jsonify({"status": "ready"}), 200
+
 
 @app.errorhandler(404)
 def not_found(error):
