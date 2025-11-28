@@ -20,6 +20,12 @@ def devops_endpoint():
     
     return jsonify(response), 200
 
+@app.route('/DevOps', methods=['GET', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'])
+def devops_error():
+    """
+    Manage all requests methods not allowed.
+    """
+    return "Error", 405
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
