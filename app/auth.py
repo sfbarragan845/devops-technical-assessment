@@ -59,25 +59,3 @@ def require_jwt(f):
         
         return f(*args, **kwargs)
     return decorated_function
-
-def optional_jwt(f):
-    """
-    Decorator to optionally accept JWT in Authorization header
-    Header example: X-JWT-KWY: Bearer your-jwt-token-here
-    """
-    
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        jwt_token = request.headers.get('X-JWT-KWY')
-        
-        if jwt_token:
-            # Verify the token
-            payload = jwt_manager.verify_token(jwt_token)
-            
-            if payload:
-                request.jwt_payload = payload
-        else:
-            request.jwt_payload = None
-            
-        return f(*args, **kwargs)
-    return decorated_function
