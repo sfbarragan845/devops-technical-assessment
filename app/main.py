@@ -37,6 +37,20 @@ def devops_error():
     """
     return "Error", 405
 
+@app.errorhandler(404)
+def not_found(error):
+    """
+    Handle 404 errors for undefined routes.
+    """
+    return jsonify({"error": "Not Found"}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """
+    Handle 500 internal server errors.
+    """
+    return jsonify({"error": "Internal Server Error"}), 500
+
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
