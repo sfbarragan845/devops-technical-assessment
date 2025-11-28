@@ -7,13 +7,18 @@ import jwt
 import os
 import uuid
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+load_dotenv()
 
 class JWTManager:
     """
     JWT Manager class to handle JWT creation and validation
     """
     def __init__(self):
-        self.secret_key = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
+        self.secret_key = os.getenv('JWT_SECRET')
+        if not self.secret_key:
+            raise ValueError("JWT_SECRET debe estar configurado en las variables de entorno")
+
         self.algorithm = 'HS256'
         self.expiration_hours = 1
     
