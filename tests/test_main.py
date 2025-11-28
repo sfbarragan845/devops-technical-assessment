@@ -238,7 +238,9 @@ class TestJWTGeneration:
             'Content-Type': 'application/json'
         }
         
-        response = client.get('/generate-jwt', headers=headers)
+        body = {}
+        response = client.post('/generate-jwt', data=json.dumps(body), headers=headers)
+        
         
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -246,5 +248,24 @@ class TestJWTGeneration:
     
     def test_generate_jwt_without_api_key(self, client):
         """Test: Generar JWT sin API Key debe fallar"""
-        response = client.get('/generate-jwt')
+        response = client.post('/generate-jwt')
         assert response.status_code == 401
+        
+        
+        
+class TestHealthEndpoints:
+    """Tests para health check endpoints"""
+    
+    def test_health_check(self, client):
+        """Test: Health check endpoint"""
+        response = client.get('/health')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['status'] == 'healthy'
+    
+    def test_readiness_check(self, client):
+        """Test: Readiness check endpoint"""
+        response = client.get('/ready')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['status'] == 'ready'
