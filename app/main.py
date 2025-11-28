@@ -71,7 +71,7 @@ def devops_error():
     """
     return "Error", 405
 
-@app.route('/Token', methods=['GET'])
+@app.route('/generate-jwt', methods=['GET'])
 @require_api_key
 def generate_jwt():
     """
@@ -80,7 +80,7 @@ def generate_jwt():
     token = jwt_manager.generate_token()
     return jsonify({"token": token}), 200
 
-@app.route('/Token', methods=['POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'])
+@app.route('/generate-jwt', methods=['POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'])
 def token_error():
     """
     Manage all requests methods not allowed.
