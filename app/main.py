@@ -7,6 +7,19 @@ import os
 
 app = Flask(__name__)
 
+@app.route('/DevOps', methods=['POST'])
+def devops_endpoint():
+    """
+    Endpoint principal /DevOps
+    Acept POST with JSON and returns personalized message.
+    """
+    data = request.get_json()
+    to_name = data['to']
+    
+    response = {"message": f"Hello {to_name} your message will be send"}
+    
+    return jsonify(response), 200
+
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
