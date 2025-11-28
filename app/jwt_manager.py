@@ -55,17 +55,17 @@ class JWTManager:
             token (str): JWT token to verify
         Returns:
             dict: Decoded token payload if valid
-        Raises:
-            jwt.ExpiredSignatureError: If the token has expired
-            jwt.InvalidTokenError: If the token is invalid
         """
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
             return payload
         except jwt.ExpiredSignatureError:
-            raise jwt.ExpiredSignatureError("Token has expired")
+            # Token expirado
+            return None
+        
         except jwt.InvalidTokenError:
-            raise jwt.InvalidTokenError("Invalid token")
+            # Token inválido
+            return None
         
     def is_token_valid(self, token):
         """

@@ -69,7 +69,7 @@ def devops_error():
     """
     Manage all requests methods not allowed.
     """
-    return "Error", 405
+    return "ERROR", 405
 
 @app.route('/generate-jwt', methods=['GET'])
 @require_api_key
@@ -85,7 +85,7 @@ def token_error():
     """
     Manage all requests methods not allowed.
     """
-    return "Error", 405
+    return "ERROR", 405
 
 @app.errorhandler(404)
 def not_found(error):
