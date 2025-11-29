@@ -12,10 +12,6 @@ from app.jwt_manager import JWTManager
 from dotenv import load_dotenv
 load_dotenv('.env.test')
 
-API_KEY = os.getenv('API_KEY_TEST')
-JWT_SECRET = os.getenv('JWT_SECRET_TEST')
-
-
 @pytest.fixture
 def client():
     """
@@ -39,6 +35,7 @@ def headers(jwt_token):
     """
     Fixture to provide headers with valid API key and JWT token.
     """
+    API_KEY = os.getenv("API_KEY_TEST")
     return {
         'X-Parse-REST-API-Key': f'{API_KEY}',
         'X-JWT-KWY': jwt_token,
@@ -127,6 +124,7 @@ class TestDevOpsEndpoint:
     
     def test_missing_jwt(self, client):
         """Test: Request sin JWT debe fallar"""
+        API_KEY = os.getenv("API_KEY_TEST")
         headers = {
             'X-Parse-REST-API-Key': f'{API_KEY}',
             'Content-Type': 'application/json'
@@ -144,13 +142,15 @@ class TestDevOpsEndpoint:
     
     def test_invalid_jwt_signature(self, client):
         """Test: JWT con firma inválida debe fallar"""
+        JWT_SECRET = os.getenv("JWT_SECRET_TEST")
+        API_KEY = os.getenv("API_KEY_TEST")
+        
         # Generar un token con un secret diferente
         invalid_token = jwt.encode(
             {"user_id": "test"}, 
             f"{JWT_SECRET}",  # Secret incorrecto
             algorithm="HS256"
         )
-        
         headers = {
             'X-Parse-REST-API-Key': f'{API_KEY}',
             'X-JWT-KWY': invalid_token,
@@ -193,6 +193,8 @@ class TestDevOpsEndpoint:
     
     def test_invalid_content_type(self, client, jwt_token):
         """Test: Content-Type invalid"""
+        API_KEY = os.getenv("API_KEY_TEST")
+
         headers = {
             'X-Parse-REST-API-Key': f'{API_KEY}',
             'X-JWT-KWY': jwt_token,
@@ -233,6 +235,8 @@ class TestJWTGeneration:
     
     def test_generate_jwt_with_api_key(self, client):
         """Test: Generar JWT con API Key válido"""
+        API_KEY = os.getenv("API_KEY_TEST")
+
         headers = {
             'X-Parse-REST-API-Key': f'{API_KEY}',
             'Content-Type': 'application/json'
