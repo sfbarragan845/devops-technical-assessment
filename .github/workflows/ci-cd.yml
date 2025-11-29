@@ -87,9 +87,9 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          JWT_SECRET_TEST: ${{ secrets.JWT_SECRET_TEST  }}
-          API_KEY_TEST: ${{ secrets.API_KEY_TEST }}
-          PORT: ${{ secrets.PORT_TEST }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_TEST  }}
+          API_KEY: ${{ secrets.API_KEY_TEST }}
+          PORT: ${{ secrets.PORT }}
           DEBUG: true
         run: |
           source venv/bin/activate
