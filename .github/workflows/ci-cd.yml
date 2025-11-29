@@ -35,7 +35,7 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           python -m pip install --upgrade pip
-          pip install -r rrequirements-dev.text
+          pip install -r requirements-dev.txt
 
       - name: Run Pylint
         run: |
