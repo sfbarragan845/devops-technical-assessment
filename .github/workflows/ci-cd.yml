@@ -66,6 +66,7 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    environment: test
     needs: lint
     steps:
       - name: Checkout code
@@ -103,7 +104,6 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET_TEST  }}
           API_KEY: ${{ secrets.API_KEY_TEST }}
           PORT: ${{ secrets.PORT_TEST }}
-          ENVIRONMENT: test
           DEBUG: true
         run: |
           source venv/bin/activate
