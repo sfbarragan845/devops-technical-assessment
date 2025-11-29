@@ -85,24 +85,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      - name: Debug - Verify environment variables
-        env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
-          API_KEY: ${{ secrets.API_KEY_TEST }}
-          PORT: ${{ secrets.PORT }}
-        run: |
-          echo "Checking environment variables..."
-          echo "JWT_SECRET is set: ${{ secrets.JWT_SECRET_TEST != '' }}"
-          echo "API_KEY is set: ${{ secrets.API_KEY_TEST != '' }}"
-          echo "PORT is set: ${{ secrets.PORT != '' }}"
-          echo "JWT_SECRET length: ${#JWT_SECRET}"
-          echo "API_KEY length: ${#API_KEY}"
-          echo "PORT value: ${PORT}"
-
       - name: Run tests with coverage
         env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET_TEST  }}
-          API_KEY: ${{ secrets.API_KEY_TEST }}
+          JWT_SECRET_TEST: ${{ secrets.JWT_SECRET_TEST  }}
+          API_KEY_TEST: ${{ secrets.API_KEY_TEST }}
           PORT: ${{ secrets.PORT_TEST }}
           DEBUG: true
         run: |
