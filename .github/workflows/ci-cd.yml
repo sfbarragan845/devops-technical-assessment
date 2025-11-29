@@ -95,12 +95,12 @@ jobs:
           DEBUG: true
         run: |
           source venv/bin/activate
-          pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-report=term-missing --omit="app/config.py"
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-report=term-missing
 
       - name: Check coverage threshold
         run: |
           source venv/bin/activate
-          coverage report --fail-under=80
+          coverage report --fail-under=80 --omit="app/config.py"
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
