@@ -86,8 +86,8 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          JWT_SECRET: ${{ secrets.API_KEY_TEST }}
-          API_KEY: ${{ secrets.JWT_SECRET_TEST }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
+          API_KEY: ${{ secrets.API_KEY_TEST }}
           ENVIRONMENT: test
           DEBUG: true
         run: |
