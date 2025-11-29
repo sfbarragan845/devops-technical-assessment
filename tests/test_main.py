@@ -10,7 +10,7 @@ import json
 from app.main import app
 from app.jwt_manager import JWTManager
 from dotenv import load_dotenv
-load_dotenv('.env.test')
+load_dotenv('.env.test', override=False)
 
 @pytest.fixture
 def client():
