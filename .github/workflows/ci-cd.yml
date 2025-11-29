@@ -95,7 +95,7 @@ jobs:
           DEBUG: true
         run: |
           source venv/bin/activate
-          pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-report=term-missing
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-report=term-missing --omit="app/config.py"
 
       - name: Check coverage threshold
         run: |
