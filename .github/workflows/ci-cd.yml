@@ -191,7 +191,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ secrets.AZURE_REGISTRY_NAME }}/${{ github.event.repository.name }}:latest
+          image-ref: ${{ steps.vars.outputs.tag-latest }}
           format: "sarif"
           output: "trivy-report.sarif"
 
