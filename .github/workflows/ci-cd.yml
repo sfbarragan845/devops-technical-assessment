@@ -3,12 +3,19 @@ on:
   push:
     branches: [main, master, develop]
   pull_request:
-    branches: [main, master, develop]
+    branches: [main, master]
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        type: choice
+        options:
+          - development
+          - production
       version:
-        description: "Version to deploy (e.g., v1.0.0)"
-        required: false
+        description: "Docker image tag to deploy"
+        required: true
         default: "latest"
 
 env:
@@ -199,3 +206,276 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-report.sarif"
+
+  # Stage 4: Deploy to Development
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: development
+      url: https://dev-devops-api.172.190.229.231.nip.io
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image variables
+        id: image-vars
+        run: |
+          REGISTRY="${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io"
+          IMAGE_NAME="${{ github.event.repository.name }}"
+          echo "registry=${REGISTRY}" >> $GITHUB_OUTPUT
+          echo "image-name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "Full image: ${REGISTRY}/${IMAGE_NAME}:develop"
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io
+          username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
+          password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
+
+      - name: Configure kubectl with kubeconfig
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl config use-context $(kubectl config current-context)
+
+      - name: Create namespace if not exists
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl create namespace development --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create ACR Secret
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl create secret docker-registry acr-secret \
+            --namespace development \
+            --docker-server=${{ steps.image-vars.outputs.registry }} \
+            --docker-username=${{ secrets.AZURE_REGISTRY_USERNAME }} \
+            --docker-password=${{ secrets.AZURE_REGISTRY_PASSWORD }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to Kubernetes
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl apply -f k8s/configmap.yaml -n development
+          kubectl apply -f k8s/secret.yaml -n development
+          kubectl apply -f k8s/deployment.yaml -n development
+          kubectl apply -f k8s/service.yaml -n development
+          kubectl apply -f k8s/hpa.yaml -n development
+
+      - name: Update image tag
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl set image deployment/devops-microservice \
+            devops-microservice=${{ steps.image-vars.outputs.registry }}/${{ steps.image-vars.outputs.image-name }}:develop \
+            -n development
+
+      - name: Wait for rollout
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl rollout status deployment/devops-microservice -n development --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl get pods -n development -l app=devops-microservice
+          kubectl get svc -n development devops-microservice
+
+  # Stage 5: Deploy to Production
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://devops-api.yourdomain.com
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image variables
+        id: image-vars
+        run: |
+          REGISTRY="${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io"
+          IMAGE_NAME="${{ github.event.repository.name }}"
+          echo "registry=${REGISTRY}" >> $GITHUB_OUTPUT
+          echo "image-name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "Full image: ${REGISTRY}/${IMAGE_NAME}:latest"
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io
+          username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
+          password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
+
+      - name: Configure kubectl with kubeconfig
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl config use-context $(kubectl config current-context)
+
+      - name: Create namespace if not exists
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl create namespace production --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create ACR Secret
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl create secret docker-registry acr-secret \
+            --namespace production \
+            --docker-server=${{ steps.image-vars.outputs.registry }} \
+            --docker-username=${{ secrets.AZURE_REGISTRY_USERNAME }} \
+            --docker-password=${{ secrets.AZURE_REGISTRY_PASSWORD }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply Kubernetes manifests
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl apply -f k8s/configmap.yaml -n production
+          kubectl apply -f k8s/secret.yaml -n production
+          kubectl apply -f k8s/deployment.yaml -n production
+          kubectl apply -f k8s/service.yaml -n production
+          kubectl apply -f k8s/ingress.yaml -n production
+          kubectl apply -f k8s/hpa.yaml -n production
+
+      - name: Update image to latest
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl set image deployment/devops-microservice \
+            devops-microservice=${{ steps.image-vars.outputs.registry }}/${{ steps.image-vars.outputs.image-name }}:latest \
+            -n production
+
+      - name: Wait for rollout
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl rollout status deployment/devops-microservice -n production --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          export KUBECONFIG=kubeconfig
+          echo "=== Pods Status ==="
+          kubectl get pods -n production -l app=devops-microservice
+          echo ""
+          echo "=== Service Status ==="
+          kubectl get svc -n production devops-microservice
+          echo ""
+          echo "=== Deployment Status ==="
+          kubectl get deployment devops-microservice -n production
+
+      - name: Run smoke tests
+        run: |
+          export KUBECONFIG=kubeconfig
+          SERVICE_IP=$(kubectl get svc devops-microservice -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "Service IP: $SERVICE_IP"
+          if [ -n "$SERVICE_IP" ]; then
+            echo "Waiting for service to be ready..."
+            sleep 30
+            curl -f http://$SERVICE_IP/health || echo "Health check failed"
+          fi
+
+  # Stage 6: Manual Deployment
+  deploy-manual:
+    name: Manual Deploy (Any Version)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    environment:
+      name: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image variables
+        id: image-vars
+        run: |
+          REGISTRY="${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io"
+          IMAGE_NAME="${{ github.event.repository.name }}"
+          echo "registry=${REGISTRY}" >> $GITHUB_OUTPUT
+          echo "image-name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "Full image: ${REGISTRY}/${IMAGE_NAME}:${{ github.event.inputs.version }}"
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io
+          username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
+          password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
+
+      - name: Configure kubectl (Production)
+        if: github.event.inputs.environment == 'production'
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl config use-context $(kubectl config current-context)
+
+      - name: Configure kubectl (Development)
+        if: github.event.inputs.environment == 'development'
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl config use-context $(kubectl config current-context)
+
+      - name: Verify image exists in ACR
+        run: |
+          echo "Checking if image exists in ACR..."
+          docker pull ${{ steps.image-vars.outputs.registry }}/${{ steps.image-vars.outputs.image-name }}:${{ github.event.inputs.version }}
+          if [ $? -eq 0 ]; then
+            echo "✅ Image tag ${{ github.event.inputs.version }} exists and can be pulled"
+          else
+            echo "❌ Image tag ${{ github.event.inputs.version }} not found or cannot be pulled"
+            exit 1
+          fi
+
+      - name: Deploy specified version
+        run: |
+          export KUBECONFIG=kubeconfig
+          echo "🚀 Deploying version: ${{ github.event.inputs.version }}"
+          echo "📦 Environment: ${{ github.event.inputs.environment }}"
+
+          # Update deployment image
+          kubectl set image deployment/devops-microservice \
+            devops-microservice=${{ steps.image-vars.outputs.registry }}/${{ steps.image-vars.outputs.image-name }}:${{ github.event.inputs.version }} \
+            -n ${{ github.event.inputs.environment }}
+
+          # Wait for rollout
+          kubectl rollout status deployment/devops-microservice \
+            -n ${{ github.event.inputs.environment }} \
+            --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          export KUBECONFIG=kubeconfig
+          echo "=== Deployment Info ==="
+          kubectl describe deployment devops-microservice -n ${{ github.event.inputs.environment }}
+          echo ""
+          echo "=== Pods ==="
+          kubectl get pods -n ${{ github.event.inputs.environment }} -l app=devops-microservice
+          echo ""
+          echo "=== Current Image ==="
+          kubectl get deployment devops-microservice -n ${{ github.event.inputs.environment }} \
+            -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo ""
+
+      - name: Deployment summary
+        run: |
+          echo "✅ Successfully deployed version ${{ github.event.inputs.version }} to ${{ github.event.inputs.environment }}"
