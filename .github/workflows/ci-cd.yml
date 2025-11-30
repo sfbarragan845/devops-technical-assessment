@@ -262,11 +262,23 @@ jobs:
             --docker-password=${{ secrets.AZURE_REGISTRY_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Apply Kubernetes Secret
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl create secret generic devops-secret \
+            --from-literal=API_KEY="${{ secrets.API_KEY }}" \
+            --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            --from-literal=API_KEY_TEST="${{ secrets.API_KEY }}" \
+            --from-literal=JWT_SECRET_TEST="${{ secrets.JWT_SECRET }}" \
+            --from-literal=JWT_EXPIRATION_HOURS="${{ vars.JWT_EXPIRATION_HOURS }}" \
+            --from-literal=PORT="${{ vars.PORT }}" \
+            --namespace=development \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy to Kubernetes
         run: |
           export KUBECONFIG=kubeconfig
           kubectl apply -f k8s/configmap.yaml -n development
-          kubectl apply -f k8s/secret.yaml -n development
           kubectl apply -f k8s/deployment.yaml -n development
           kubectl apply -f k8s/service.yaml -n development
           kubectl apply -f k8s/hpa.yaml -n development
@@ -344,11 +356,23 @@ jobs:
             --docker-password=${{ secrets.AZURE_REGISTRY_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Apply Kubernetes Secret
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl create secret generic devops-secret \
+            --from-literal=API_KEY="${{ secrets.API_KEY }}" \
+            --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            --from-literal=API_KEY_TEST="${{ secrets.API_KEY }}" \
+            --from-literal=JWT_SECRET_TEST="${{ secrets.JWT_SECRET }}" \
+            --from-literal=JWT_EXPIRATION_HOURS="${{ vars.JWT_EXPIRATION_HOURS }}" \
+            --from-literal=PORT="${{ vars.PORT }}" \
+            --namespace=production \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Kubernetes manifests
         run: |
           export KUBECONFIG=kubeconfig
           kubectl apply -f k8s/configmap.yaml -n production
-          kubectl apply -f k8s/secret.yaml -n production
           kubectl apply -f k8s/deployment.yaml -n production
           kubectl apply -f k8s/service.yaml -n production
           kubectl apply -f k8s/ingress.yaml -n production
