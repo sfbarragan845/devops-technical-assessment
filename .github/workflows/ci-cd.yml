@@ -297,7 +297,7 @@ jobs:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     environment:
       name: production
-      url: https://devops-api.yourdomain.com
+      url: https://devops-api.172.190.229.231.nip.io
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
