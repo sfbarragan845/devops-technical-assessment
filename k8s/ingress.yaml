@@ -1,0 +1,26 @@
+# Configure an Ingress resource to route external traffic to the microservice
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devops-microservice-ingress
+  namespace: production
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  rules:
+    - host: devops-api.172.190.229.231.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: devops-microservice
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - devops-api.172.190.229.231.nip.io
+      secretName: devops-tls-secret
