@@ -14,10 +14,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - devops-api.172.190.229.231.nip.io
+        - devops-api.48.194.75.107.nip.io
       secretName: devops-tls-secret
   rules:
-    - host: devops-api.172.190.229.231.nip.io
+    - host: devops-api.48.194.75.107.nip.io
       http:
         paths:
           - path: /
