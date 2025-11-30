@@ -109,7 +109,7 @@ resource "kubernetes_deployment" "flask_production" {
           name  = "devops-microservice"
           image = var.docker_image
 
-          ports {
+          port {
             container_port = 5000
           }
         }
