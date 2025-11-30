@@ -262,6 +262,30 @@ jobs:
             --docker-password=${{ secrets.AZURE_REGISTRY_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Install cert-manager (if not exists)
+        run: |
+          export KUBECONFIG=kubeconfig
+          # Verificar si cert-manager ya está instalado
+          if ! kubectl get namespace cert-manager >/dev/null 2>&1; then
+            echo "Installing cert-manager..."
+            kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+            echo "Waiting for cert-manager to be ready..."
+            kubectl wait --for=condition=Available --timeout=300s deployment/cert-manager -n cert-manager
+            kubectl wait --for=condition=Available --timeout=300s deployment/cert-manager-webhook -n cert-manager
+            kubectl wait --for=condition=Available --timeout=300s deployment/cert-manager-cainjector -n cert-manager
+          else
+            echo "cert-manager is already installed"
+          fi
+
+      - name: Apply ClusterIssuer
+        run: |
+          export KUBECONFIG=kubeconfig
+          export LETSENCRYPT_EMAIL="${{ secrets.LETSENCRYPT_EMAIL }}"
+
+          envsubst < k8s/cluster-issuer-development.template.yaml | kubectl apply -f -
+          sleep 10
+          kubectl get clusterissuer letsencrypt-development -o yaml
+
       - name: Apply Kubernetes Secret
         run: |
           export KUBECONFIG=kubeconfig
@@ -300,6 +324,18 @@ jobs:
           export KUBECONFIG=kubeconfig
           kubectl get pods -n development -l app=devops-microservice
           kubectl get svc -n development devops-microservice
+
+      - name: Verify TLS Certificate
+        run: |
+          export KUBECONFIG=kubeconfig
+          echo "=== Certificate Status ==="
+          kubectl get certificate -n development
+          echo ""
+          echo "=== Certificate Details ==="
+          kubectl describe certificate devops-tls-secret -n development || echo "Certificate not created yet"
+          echo ""
+          echo "=== TLS Secret Status ==="
+          kubectl get secret devops-tls-secret -n development || echo "TLS secret not created yet"
 
   # Stage 5: Deploy to Production
   deploy-prod:
@@ -355,6 +391,30 @@ jobs:
             --docker-username=${{ secrets.AZURE_REGISTRY_USERNAME }} \
             --docker-password=${{ secrets.AZURE_REGISTRY_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Install cert-manager (if not exists)
+        run: |
+          export KUBECONFIG=kubeconfig
+          # Verificar si cert-manager ya está instalado
+          if ! kubectl get namespace cert-manager >/dev/null 2>&1; then
+            echo "Installing cert-manager..."
+            kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+            echo "Waiting for cert-manager to be ready..."
+            kubectl wait --for=condition=Available --timeout=300s deployment/cert-manager -n cert-manager
+            kubectl wait --for=condition=Available --timeout=300s deployment/cert-manager-webhook -n cert-manager
+            kubectl wait --for=condition=Available --timeout=300s deployment/cert-manager-cainjector -n cert-manager
+          else
+            echo "cert-manager is already installed"
+          fi
+
+      - name: Apply ClusterIssuer
+        run: |
+          export KUBECONFIG=kubeconfig
+          export LETSENCRYPT_EMAIL="${{ secrets.LETSENCRYPT_EMAIL }}"
+
+          envsubst < k8s/cluster-issuer.template.yaml | kubectl apply -f -
+          sleep 10
+          kubectl get clusterissuer letsencrypt-prod -o yaml
 
       - name: Apply Kubernetes Secret
         run: |
@@ -413,6 +473,18 @@ jobs:
             curl -f http://$SERVICE_IP/health || echo "Health check failed"
           fi
 
+      - name: Verify TLS Certificate
+        run: |
+          export KUBECONFIG=kubeconfig
+          echo "=== Certificate Status ==="
+          kubectl get certificate -n production
+          echo ""
+          echo "=== Certificate Details ==="
+          kubectl describe certificate devops-tls-secret -n production || echo "Certificate not created yet"
+          echo ""
+          echo "=== TLS Secret Status ==="
+          kubectl get secret devops-tls-secret -n production || echo "TLS secret not created yet"
+
   # Stage 6: Manual Deployment
   deploy-manual:
     name: Manual Deploy (Any Version)
@@ -459,22 +531,54 @@ jobs:
           export KUBECONFIG=kubeconfig
           kubectl config use-context $(kubectl config current-context)
 
+      - name: Install cert-manager (if not exists)
+        run: |
+          export KUBECONFIG=kubeconfig
+          if ! kubectl get namespace cert-manager >/dev/null 2>&1; then
+            echo " Installing cert-manager..."
+            kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+            echo " Waiting for cert-manager to be ready..."
+            kubectl wait --for=condition=Available --timeout=300s deployment/cert-manager -n cert-manager
+            kubectl wait --for=condition=Available --timeout=300s deployment/cert-manager-webhook -n cert-manager
+            kubectl wait --for=condition=Available --timeout=300s deployment/cert-manager-cainjector -n cert-manager
+            echo " cert-manager installed successfully"
+          else
+            echo " cert-manager is already installed"
+          fi
+
+      - name: Apply ClusterIssuer
+        run: |
+          export KUBECONFIG=kubeconfig
+          export LETSENCRYPT_EMAIL="${{ secrets.LETSENCRYPT_EMAIL }}"
+
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            echo " Applying production ClusterIssuer"
+            envsubst < k8s/cluster-issuer.template.yaml | kubectl apply -f -
+            sleep 10
+            kubectl get clusterissuer letsencrypt-prod -o yaml
+          else
+            echo " Applying development ClusterIssuer"
+            envsubst < k8s/cluster-issuer-development.template.yaml | kubectl apply -f -
+            sleep 10
+            kubectl get clusterissuer letsencrypt-development -o yaml
+          fi
+
       - name: Verify image exists in ACR
         run: |
           echo "Checking if image exists in ACR..."
           docker pull ${{ steps.image-vars.outputs.registry }}/${{ steps.image-vars.outputs.image-name }}:${{ github.event.inputs.version }}
           if [ $? -eq 0 ]; then
-            echo "✅ Image tag ${{ github.event.inputs.version }} exists and can be pulled"
+            echo " Image tag ${{ github.event.inputs.version }} exists and can be pulled"
           else
-            echo "❌ Image tag ${{ github.event.inputs.version }} not found or cannot be pulled"
+            echo " Image tag ${{ github.event.inputs.version }} not found or cannot be pulled"
             exit 1
           fi
 
       - name: Deploy specified version
         run: |
           export KUBECONFIG=kubeconfig
-          echo "🚀 Deploying version: ${{ github.event.inputs.version }}"
-          echo "📦 Environment: ${{ github.event.inputs.environment }}"
+          echo " Deploying version: ${{ github.event.inputs.version }}"
+          echo " Environment: ${{ github.event.inputs.environment }}"
 
           # Update deployment image
           kubectl set image deployment/devops-microservice \
@@ -500,6 +604,35 @@ jobs:
             -o jsonpath='{.spec.template.spec.containers[0].image}'
           echo ""
 
+      - name: Verify TLS Certificate
+        run: |
+          export KUBECONFIG=kubeconfig
+          echo " === Certificate Status ==="
+          kubectl get certificate -n ${{ github.event.inputs.environment }} || echo "No certificates found yet"
+          echo ""
+
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            SECRET_NAME="devops-tls-secret"
+          else
+            SECRET_NAME="devops-tls-secret-dev"
+          fi
+
+          echo " === Certificate Details ==="
+          kubectl describe certificate $SECRET_NAME -n ${{ github.event.inputs.environment }} || echo "Certificate not created yet - will be created automatically"
+          echo ""
+          echo " === TLS Secret Status ==="
+          kubectl get secret $SECRET_NAME -n ${{ github.event.inputs.environment }} || echo "TLS secret not created yet - certificate is being provisioned"
+
       - name: Deployment summary
         run: |
-          echo "✅ Successfully deployed version ${{ github.event.inputs.version }} to ${{ github.event.inputs.environment }}"
+          echo " Successfully deployed version ${{ github.event.inputs.version }} to ${{ github.event.inputs.environment }}"
+          echo ""
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            echo " URL: https://devops-api.172.190.229.231.nip.io"
+            echo " Certificate: Let's Encrypt Production"
+          else
+            echo " URL: https://devops-api-dev.172.190.229.231.nip.io"
+            echo " Certificate: Let's Encrypt Staging (will show browser warning)"
+          fi
+          echo ""
+          echo " Note: SSL certificate may take 1-2 minutes to be issued after first deployment"
