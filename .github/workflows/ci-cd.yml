@@ -265,7 +265,7 @@ jobs:
       - name: Apply Kubernetes Secret
         run: |
           export KUBECONFIG=kubeconfig
-          kubectl create secret generic devops-secret \
+          kubectl create secret generic devops-secrets \
             --from-literal=API_KEY="${{ secrets.API_KEY }}" \
             --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             --from-literal=API_KEY_TEST="${{ secrets.API_KEY }}" \
@@ -359,7 +359,7 @@ jobs:
       - name: Apply Kubernetes Secret
         run: |
           export KUBECONFIG=kubeconfig
-          kubectl create secret generic devops-secret \
+          kubectl create secret generic devops-secrets \
             --from-literal=API_KEY="${{ secrets.API_KEY }}" \
             --from-literal=JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             --from-literal=API_KEY_TEST="${{ secrets.API_KEY }}" \
