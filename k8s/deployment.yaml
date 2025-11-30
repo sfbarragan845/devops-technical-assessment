@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-microservice
+  namespace: production
+  labels:
+    app: devops-microservice
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: devops-microservice
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: devops-microservice
+        version: v1
+    spec:
+      # Image Pull Secret para Azure Container Registry
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: devops-microservice
+          image: devopstechnicalassessment.azurecr.io/devops-technical-assessment:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+              name: http
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "5000"
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devops-secrets
+                  key: api-key
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: devops-secrets
+                  key: jwt-secret
+            - name: JWT_EXPIRATION_HOURS
+              valueFrom:
+                configMapKeyRef:
+                  name: devops-config
+                  key: jwt-expiration-hours
+            - name: API_KEY_TEST
+              valueFrom:
+                secretKeyRef:
+                  name: devops-secrets
+                  key: api-key-test
+            - name: JWT_SECRET_TEST
+              valueFrom:
+                secretKeyRef:
+                  name: devops-secrets
+                  key: jwt-secret-test
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: devops-config
+                  key: environment
+            - name: APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: devops-config
+                  key: app-name
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always
