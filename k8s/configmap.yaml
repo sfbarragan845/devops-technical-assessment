@@ -1,0 +1,12 @@
+# ConfigMap for application settings
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devops-config
+  namespace: production
+  labels:
+    app: devops-microservice
+data:
+  jwt-expiration-hours: "1"
+  app-name: "DevOps Microservice"
+  environment: "production"
