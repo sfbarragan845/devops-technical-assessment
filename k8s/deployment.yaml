@@ -40,12 +40,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: devops-secrets
-                  key: api-key
+                  key: API_KEY
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: devops-secrets
-                  key: jwt-secret
+                  key: JWT_SECRET
             - name: JWT_EXPIRATION_HOURS
               valueFrom:
                 configMapKeyRef:
@@ -55,12 +55,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: devops-secrets
-                  key: api-key-test
+                  key: API_KEY_TEST
             - name: JWT_SECRET_TEST
               valueFrom:
                 secretKeyRef:
                   name: devops-secrets
-                  key: jwt-secret-test
+                  key: JWT_SECRET_TEST
             - name: ENVIRONMENT
               valueFrom:
                 configMapKeyRef:
