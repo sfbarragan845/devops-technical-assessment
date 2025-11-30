@@ -7,8 +7,7 @@ metadata:
     kubernetes.io/ingress.class: azure/application-gateway
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     acme.cert-manager.io/http01-edit-in-place: "true"
-    # Desactivar SSL redirect temporalmente para permitir HTTP-01
-    appgw.ingress.kubernetes.io/ssl-redirect: "false"
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
     # Configurar health probes para Application Gateway
     appgw.ingress.kubernetes.io/health-probe-status-codes: "200-499"
 spec:
