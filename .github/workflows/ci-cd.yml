@@ -130,6 +130,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # DEBUG: Verificar valores de las variables
+      - name: Debug - Show registry info
+        run: |
+          echo "Registry Name: ${{ secrets.AZURE_REGISTRY_NAME }}"
+          echo "Full Registry: ${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io"
+          echo "Image will be: ${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io/${{ github.event.repository.name }}"
+
       - name: Log in to Azure Container Registry
         uses: docker/login-action@v3
         with:
@@ -137,28 +144,49 @@ jobs:
           username: ${{ secrets.AZURE_REGISTRY_USERNAME }}
           password: ${{ secrets.AZURE_REGISTRY_PASSWORD }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.AZURE_REGISTRY_NAME }}/${{ github.event.repository.name }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
+      # DEBUG: Verificar que el login funcionó
+      - name: Verify Docker login
+        run: |
+          cat ~/.docker/config.json
+          docker info
+
+      - name: Set image variables
+        id: vars
+        run: |
+          # Asegurar que tenemos el registry completo
+          REGISTRY="${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io"
+          IMAGE_NAME="${{ github.event.repository.name }}"
+          BRANCH="${{ github.ref_name }}"
+          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+
+          # Construir las tags completas
+          TAG_BRANCH="${REGISTRY}/${IMAGE_NAME}:${BRANCH}"
+          TAG_SHA="${REGISTRY}/${IMAGE_NAME}:${SHA_SHORT}"
+          TAG_LATEST="${REGISTRY}/${IMAGE_NAME}:latest"
+
+          echo "registry=${REGISTRY}" >> $GITHUB_OUTPUT
+          echo "image-name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "tag-branch=${TAG_BRANCH}" >> $GITHUB_OUTPUT
+          echo "tag-sha=${TAG_SHA}" >> $GITHUB_OUTPUT
+          echo "tag-latest=${TAG_LATEST}" >> $GITHUB_OUTPUT
+
+          # Mostrar las tags que se van a usar
+          echo "Tags to be used:"
+          echo "  - ${TAG_BRANCH}"
+          echo "  - ${TAG_SHA}"
+          echo "  - ${TAG_LATEST}"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io/${{ github.event.repository.name }}:buildcache
-          cache-to: type=registry,ref=${{ secrets.AZURE_REGISTRY_NAME }}.azurecr.io/${{ github.event.repository.name }}:buildcache,mode=max
+          tags: |
+            ${{ steps.vars.outputs.tag-branch }}
+            ${{ steps.vars.outputs.tag-sha }}
+            ${{ steps.vars.outputs.tag-latest }}
+          provenance: false
+          sbom: false
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
