@@ -23,6 +23,11 @@ variable "docker_image" {
   default = "devopstechnicalassessment.azurecr.io/devops-technical-assessment:latest"
 }
 
+variable "docker_image_dev" {
+  type    = string
+  default = "devopstechnicalassessment.azurecr.io/devops-technical-assessment:latest"
+}
+
 variable "node_count" {
   type    = number
   default = 1
